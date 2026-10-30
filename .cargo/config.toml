@@ -1,0 +1,10 @@
+[registry]
+global-min-publish-age = "7 days"
+
+[resolver]
+incompatible-publish-age = "deny"
+
+# Cargo reads min-publish-age without this from 1.100 on and trim-paths from 1.101 on; rust-toolchain.toml pins a nightly before that.
+[unstable]
+min-publish-age = true
+trim-paths = true

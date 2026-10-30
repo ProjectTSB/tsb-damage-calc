@@ -1,0 +1,6 @@
+node_modules/
+web/js/
+src-tauri/target/
+src-tauri/gen/
+.interface-design/
+verify/

@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>TSB ダメージ計算</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./js/ui/main.js"></script>
+</head>
+<body>
+  <form id="form" class="app" autocomplete="off">
+    <header class="topbar">
+      <div class="brand">
+        <svg class="moon-mark" width="34" height="34" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+          <circle cx="32" cy="32" r="30" class="moon-face" />
+          <circle cx="23" cy="22" r="7" class="moon-crater" />
+          <circle cx="41" cy="38" r="5" class="moon-crater" />
+          <circle cx="24" cy="44" r="3" class="moon-crater" />
+          <circle cx="44" cy="20" r="2.5" class="moon-crater" />
+        </svg>
+        <div>
+          <h1>TSB ダメージ計算</h1>
+          <p class="source"><code>api:damage</code> をゲーム内と同じ整数で計算</p>
+        </div>
+      </div>
+      <div class="pairs" role="group" aria-label="組み合わせ">
+        <button type="button" data-pair="deal" aria-pressed="true" title="プレイヤー → Mob">与ダメージ</button>
+        <button type="button" data-pair="take" aria-pressed="false" title="Mob → プレイヤー">被ダメージ</button>
+      </div>
+      <label class="inline">難易度
+        <select name="difficulty">
+          <option value="1">Normal</option>
+          <option value="2">Hard</option>
+          <option value="3">Blessless</option>
+        </select>
+      </label>
+      <div class="mode">
+        <span class="mode-label" id="mode-label">計算モード</span>
+        <div class="segmented" role="group" aria-labelledby="mode-label">
+          <button type="button" data-mode="current" aria-pressed="true">上限 9999.9</button>
+          <button type="button" data-mode="pr1635" aria-pressed="false">上限 99999.9</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="columns">
+      <section class="column attack" aria-labelledby="attack-title">
+        <div class="column-head">
+          <h2 id="attack-title">攻撃</h2>
+          <label class="inline">攻撃元
+            <select name="attacker">
+              <option value="player">プレイヤー</option>
+              <option value="mob">Mob</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="preset">
+          <div class="preset-row" data-kind="attack">
+            <div class="preset-pick">
+              <select data-role="list" aria-label="攻撃のプリセット"></select>
+              <button type="button" data-action="load">読み込む</button>
+              <button type="button" data-action="stack">重ねる</button>
+              <button type="button" data-action="delete">削除</button>
+            </div>
+            <details class="note">
+              <summary>今の入力を保存</summary>
+              <div class="preset-save">
+                <input type="text" data-role="name" placeholder="プリセット名" aria-label="攻撃のプリセットの名前">
+                <button type="button" data-action="save">保存</button>
+              </div>
+              <p>保存するもの：攻撃の値、固定ダメージ・Bypass、攻撃元の補正とバフ。「重ねる」はバフの行を後ろに追加する。</p>
+              <p class="preset-location"></p>
+            </details>
+          </div>
+        </div>
+
+        <fieldset>
+          <legend>攻撃の値</legend>
+          <div class="grid-2">
+            <label>Damage
+              <input name="damage" type="number" step="any" value="10">
+            </label>
+            <label>型
+              <select name="damageTag">
+                <option value="float">float（30f など）</option>
+                <option value="double">double・int（30 など）</option>
+              </select>
+            </label>
+            <label>AttackType
+              <select name="attackType">
+                <option value="Physical">Physical</option>
+                <option value="Magic">Magic</option>
+              </select>
+            </label>
+            <label>ElementType
+              <select name="elementType">
+                <option value="None">None</option>
+                <option value="Fire">Fire</option>
+                <option value="Water">Water</option>
+                <option value="Thunder">Thunder</option>
+              </select>
+            </label>
+            <label>軽減エンチャント <code>ReduceEnchantment</code>
+              <select name="reduceId">
+                <option value="">指定なし</option>
+                <option value="minecraft:fire_protection">火炎耐性（×2）</option>
+                <option value="minecraft:blast_protection">爆発耐性（×2）</option>
+                <option value="minecraft:projectile_protection">飛び道具耐性（×2）</option>
+                <option value="minecraft:feather_falling">落下耐性（×3）</option>
+                <option value="other">その他（×1）</option>
+              </select>
+            </label>
+            <label>エンチャント係数 <code>modifier</code>
+              <input name="reduceModifier" type="number" step="1" placeholder="既定">
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset data-show="attacker-player">
+          <legend>攻撃元の補正 <code>Attributes.Attack</code></legend>
+          <div class="grid-3">
+            <label>Base<input name="attack.Base" type="number" step="0.001" value="1"></label>
+            <label>Physical<input name="attack.Physical" type="number" step="0.001" value="1"></label>
+            <label>Magic<input name="attack.Magic" type="number" step="0.001" value="1"></label>
+            <label>Fire<input name="attack.Fire" type="number" step="0.001" value="1"></label>
+            <label>Water<input name="attack.Water" type="number" step="0.001" value="1"></label>
+            <label>Thunder<input name="attack.Thunder" type="number" step="0.001" value="1"></label>
+          </div>
+          <p class="hint">バフ前の値（プレイヤーは 1）。バフを入れない場合は <code>api:modifier/&lt;属性&gt;/get</code> の値でも可。</p>
+          <div class="buffs" data-side="attack"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>固定ダメージ・Bypass</legend>
+          <div class="checks">
+            <label class="check-all"><input name="fixedDamage" type="checkbox"> <code>FixedDamage</code>（下の 6 つをすべてオン）</label>
+            <label><input name="bypass.modifier" type="checkbox"> <code>BypassModifier</code></label>
+            <label><input name="bypass.armorDefense" type="checkbox"> <code>BypassArmorDefense</code></label>
+            <label><input name="bypass.toughness" type="checkbox"> <code>BypassToughness</code></label>
+            <label><input name="bypass.enchantments" type="checkbox"> <code>BypassEnchantments</code></label>
+            <label><input name="bypass.resistance" type="checkbox"> <code>BypassResistance</code></label>
+            <label><input name="bypass.difficulty" type="checkbox"> <code>BypassDifficulty</code></label>
+          </div>
+        </fieldset>
+      </section>
+
+      <section class="column target" aria-labelledby="target-title">
+        <div class="column-head">
+          <h2 id="target-title">防御</h2>
+          <label class="inline">対象
+            <select name="target">
+              <option value="mob">Mob</option>
+              <option value="player">プレイヤー</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="preset">
+          <div class="preset-row" data-kind="defense">
+            <div class="preset-pick">
+              <select data-role="list" aria-label="防御のプリセット"></select>
+              <button type="button" data-action="load">読み込む</button>
+              <button type="button" data-action="stack">重ねる</button>
+              <button type="button" data-action="delete">削除</button>
+            </div>
+            <details class="note">
+              <summary>今の入力を保存</summary>
+              <div class="preset-save">
+                <input type="text" data-role="name" placeholder="プリセット名" aria-label="防御のプリセットの名前">
+                <button type="button" data-action="save">保存</button>
+              </div>
+              <p>保存するもの：対象の種類、対象の補正（Mob は耐性）とバフ、防具・耐性。「重ねる」はバフの行を後ろに追加し、防具値・防具強度・エンチャントの Lv を合計する。神器ごとに保存して重ねると、複数の神器を装備した状態を作れる。同じ神器の重ね掛けは計算しないので、合計の値をバフに入れる。</p>
+              <p class="preset-location"></p>
+            </details>
+          </div>
+        </div>
+
+        <fieldset data-show="target-player">
+          <legend>対象の補正 <code>Attributes.Defense</code></legend>
+          <div class="grid-3">
+            <label>Base<input name="defense.Base" type="number" step="0.001" value="1"></label>
+            <label>Physical<input name="defense.Physical" type="number" step="0.001" value="1"></label>
+            <label>Magic<input name="defense.Magic" type="number" step="0.001" value="1"></label>
+            <label>Fire<input name="defense.Fire" type="number" step="0.001" value="1"></label>
+            <label>Water<input name="defense.Water" type="number" step="0.001" value="1"></label>
+            <label>Thunder<input name="defense.Thunder" type="number" step="0.001" value="1"></label>
+          </div>
+          <p class="hint">受けるダメージに掛かる倍率。バフ前の値（プレイヤーは 1）。</p>
+          <div class="buffs" data-side="defense"></div>
+        </fieldset>
+
+        <fieldset data-show="target-mob">
+          <legend>対象の耐性 <code>Resist</code>（register の値）</legend>
+          <div class="grid-3">
+            <label>Physical<input name="resist.Physical" type="number" step="any" value="1"></label>
+            <label>Magic<input name="resist.Magic" type="number" step="any" value="1"></label>
+            <label>Fire<input name="resist.Fire" type="number" step="any" value="1"></label>
+            <label>Water<input name="resist.Water" type="number" step="any" value="1"></label>
+            <label>Thunder<input name="resist.Thunder" type="number" step="any" value="1"></label>
+          </div>
+          <div class="follow">
+            <label>型
+              <select name="resistTag">
+                <option value="double">double・int（1.4 など）</option>
+                <option value="float">float（1.4f など）</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint">空欄は 1。Base の欄が無いのは、召喚時に 1 で上書きされるため。</p>
+          <div class="buffs" data-side="resist"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>防具・耐性</legend>
+          <div class="grid-2">
+            <label>防具値 <code>generic.<wbr>armor</code><input name="armor" type="number" step="any" min="0" max="30" value="0"></label>
+            <label>防具強度 <code>generic.<wbr>armor_toughness</code><input name="toughness" type="number" step="any" min="0" max="20" value="0"></label>
+            <label>耐性エフェクトの Lv<input name="resistanceLevel" type="number" step="1" min="0" value="0"></label>
+            <label>ダメージ軽減の合計 Lv<input name="protectionLevels" type="number" step="1" min="0" value="0"></label>
+            <label><span id="reduce-levels-label">軽減エンチャントの合計 Lv</span><input name="reduceLevels" type="number" step="1" min="0" value="0"></label>
+          </div>
+          <p class="hint">エンチャントの Lv は防具 4 部位の合計。軽減エンチャントは「攻撃の値」で選んだものだけ数える。耐性エフェクトの Lv は amplifier + 1（耐性 I なら 1）。</p>
+        </fieldset>
+      </section>
+
+      <section class="column result" id="result" aria-live="polite">
+        <div class="final">
+          <span class="final-label" id="final-label">最終ダメージ</span>
+          <span class="final-value" id="final-value">-</span>
+          <span class="final-note" id="final-note"></span>
+        </div>
+        <table>
+          <thead>
+            <tr><th class="num">#</th><th>計算の段</th><th class="num">値（内部の整数）</th></tr>
+          </thead>
+          <tbody id="steps"></tbody>
+        </table>
+        <p class="error" id="error" hidden></p>
+      </section>
+    </div>
+
+    <footer class="statusbar">
+      <p id="preset-status"></p>
+    </footer>
+  </form>
+
+  <template id="buffs-template">
+    <div class="buff-head">
+      <span class="buff-title">バフ</span>
+      <button type="button" data-add="equipment">＋ 装備のバフ</button>
+      <button type="button" data-add="effect">＋ エフェクトのバフ</button>
+    </div>
+    <details class="note">
+      <summary>装備は合計してから 1 回、エフェクトは 1 つずつ掛ける</summary>
+      <p class="buff-help"></p>
+    </details>
+    <div class="buff-list"></div>
+    <div class="buff-sum"></div>
+  </template>
+
+  <template id="buff-row-template">
+    <div class="buff-row">
+      <input type="text" data-field="name" placeholder="名前（任意）" aria-label="バフの名前">
+      <button type="button" data-action="remove" aria-label="このバフを消す">×</button>
+      <select data-field="source" aria-label="バフの種類">
+        <option value="equipment">装備</option>
+        <option value="effect">エフェクト</option>
+      </select>
+      <select data-field="key" aria-label="補正先"></select>
+      <input type="number" data-field="amount" step="any" value="0.1" aria-label="値（Amount）">
+      <select data-field="operation" aria-label="掛け方">
+        <option value="multiply_base">合計してから掛ける（multiply_base）</option>
+        <option value="multiply">1 つずつ掛ける（multiply）</option>
+        <option value="add">基礎値に足す（add）</option>
+      </select>
+      <span class="buff-effect" data-field="effect"></span>
+    </div>
+  </template>
+</body>
+</html>
