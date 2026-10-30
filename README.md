@@ -12,10 +12,10 @@
 
 ## 計算の範囲
 
-`api:damage/modifier` から、`api:damage/` が体力を減らす量までを計算します。ゲーム内と同じくダメージを 100 倍した整数で扱い、float への丸め、`data get` の切り捨て、scoreboard の割り算の丸めも同じ順に再現しています。
+`api:damage/modifier` から、`api:damage/` が体力を減らす量までを、ゲーム内と同じく整数で計算します。float への丸め、`data get` の切り捨て、scoreboard の割り算の丸めも同じ順に再現しています。
 
-- `Damage` と `Resist` の「型」は TSB のコードでの書き方に合わせます。float では丸めが入るので、0.7f は 0.69 として計算されます。
-- 計算モード「上限 99999.9」は [PR #1635](https://github.com/ProjectTSB/TheSkyBlessing/pull/1635) の計算です。上限が難易度補正の後に掛かり、防具・耐性エフェクト・エンチャントもダメージ 1000 以上で精度を落とさない計算になります。
+- `Damage` と `Resist` の「型」は TSB のコードでの書き方（`30f` なら float）に合わせて選びます。float では丸めが入るので、0.7f は 0.69 として計算されます。
+- 計算モード「上限 99999.9」は [PR #1635](https://github.com/ProjectTSB/TheSkyBlessing/pull/1635) の計算です。
 
 ## 計算しないもの
 
@@ -30,7 +30,6 @@ Node.js 24 以上、pnpm、Rust（rustup）、Microsoft C++ Build Tools（「C++
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm test
 pnpm tauri build --no-bundle -- --locked
 ```
 
